@@ -1,0 +1,10 @@
+build/
+dist/
+nbproject/
+*.inc
+*.tmp
+.idea
+cmake-build-debug/
+
+
+.DS_Store
