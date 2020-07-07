@@ -18,8 +18,8 @@
 namespace KV {
 
     void DelayInLookUp() {
-//        std::string str = std::to_string(1);
-//        str.append(" ");
+        //        std::string str = std::to_string(1);
+        //        str.append(" ");
     }
 
     class KV_NoLock {
@@ -52,6 +52,11 @@ namespace KV {
             kv.emplace(key, value);
         }
 
+        void remove(int key) {
+            std::lock_guard<LOCK> lk(m);
+            kv.erase(key);
+        }
+
         bool lookup(int key, int& value) {
             std::lock_guard<LOCK> lk(m);
             DelayInLookUp();
@@ -73,6 +78,12 @@ namespace KV {
         void add(int key, int value) {
             m.wlock();
             kv.emplace(key, value);
+            m.wunlock();
+        }
+
+        void remove(int key) {
+            m.wlock();
+            kv.erase(key);
             m.wunlock();
         }
 
@@ -110,6 +121,15 @@ namespace KV {
                 kv.swap(newData);
             }
             kv->emplace(key, value);
+        }
+
+        void remove(int key) {
+            std::lock_guard<LOCK> lk(m);
+            if (!kv.unique()) {
+                MapPtr newData = std::make_shared<Map>();
+                kv.swap(newData);
+            }
+            kv->erase(key);
         }
 
         bool lookup(int key, int& value) {

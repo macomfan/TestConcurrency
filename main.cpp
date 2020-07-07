@@ -8,7 +8,7 @@
  * 
  */
 int main(int argc, char** argv) {
-    //StartTestKV();
+    StartTestKV();
     
     StartTestQueue(40000 * 4, 1, 100, [](const std::string & value) {
         std::string tmp = value;

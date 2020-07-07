@@ -49,16 +49,19 @@ void TestKV(const char* title, KV_CONTEXT context) {
             }, itemNum));
         }
     };
-    auto writer = [&](int itemNum) {
-        pool.push_back(std::thread([&](int itemNum) {
-            for (int i = 0; i < context.itemNum; i++) {
-                kv.add(i, i);
-            }
-        }, itemNum));
+    auto writer = [&](int itemNum, int threadNum) {
+        for (int i = 0; i < threadNum; i++) {
+            pool.push_back(std::thread([&](int itemNum) {
+                for (int i = 0; i < context.itemNum; i++) {
+                    kv.remove(i);
+                    kv.add(i, i);
+                }
+            }, itemNum));
+        }
     };
 
     reader(context.itemNum, context.readerNum);
-    //writer(context.itemNum, context.writeNum);
+    writer(context.itemNum, context.writeNum);
     for (int i = 0; i < pool.size(); i++) {
         pool[i].join();
     }
@@ -69,7 +72,7 @@ void StartTestKV() {
     KV_CONTEXT context;
     context.itemNum = 9999999;
     context.readerNum = 2;
-    context.writeNum = 0;
+    context.writeNum = 1;
     TestKV<KV::KV_LockAll < std::mutex >> ("LockAll - mutex", context);
     TestKV<KV::KV_LockAll < std::mutex >> ("LockAll - mutex", context);
     TestKV<KV::KV_LockAll < std::mutex >> ("LockAll - mutex", context);
