@@ -8,9 +8,10 @@
  * 
  */
 int main(int argc, char** argv) {
+
     StartTestKV();
-    
-    StartTestQueue(40000 * 4, 1, 100, [](const std::string & value) {
+
+    StartTestQueue(10000 * 4, 1, 2, [](const std::string & value) {
         std::string tmp = value;
         std::string str = "a";
         for (int i = 0; i < 10000; i++) {

@@ -82,13 +82,22 @@ void StartTestKV() {
     TestKV<KV::KV_LockAll < L::SpinLock_atomic >> ("LockAll - atomic", context);
     TestKV<KV::KV_LockAll < L::SpinLock_atomic >> ("LockAll - atomic", context);
     TestKV<KV::KV_LockAll < L::SpinLock_atomic >> ("LockAll - atomic", context);
-    TestKV<KV::KV_CopyOnWrite < L::SpinLock_CAS >> ("CopyOnWrite", context);
-    TestKV<KV::KV_CopyOnWrite < L::SpinLock_CAS >> ("CopyOnWrite", context);
-    TestKV<KV::KV_CopyOnWrite < L::SpinLock_CAS >> ("CopyOnWrite", context);
+    TestKV<KV::KV_LockAll < L::SpinLock_CAS >> ("LockAll - CAS", context);
+    TestKV<KV::KV_LockAll < L::SpinLock_CAS >> ("LockAll - CAS", context);
+    TestKV<KV::KV_LockAll < L::SpinLock_CAS >> ("LockAll - CAS", context);
     TestKV<KV::KV_RWLock < L::AtomicRWLock >> ("RW - Atomic", context);
     TestKV<KV::KV_RWLock < L::AtomicRWLock >> ("RW - Atomic", context);
     TestKV<KV::KV_RWLock < L::AtomicRWLock >> ("RW - Atomic", context);
     TestKV<KV::KV_RWLock < L::LinuxRWLock >> ("RW - Linux", context);
     TestKV<KV::KV_RWLock < L::LinuxRWLock >> ("RW - Linux", context);
     TestKV<KV::KV_RWLock < L::LinuxRWLock >> ("RW - Linux", context);
+    TestKV<KV::KV_RWLock < L::CVRWLock >> ("RW - CVRWLock", context);
+    TestKV<KV::KV_RWLock < L::CVRWLock >> ("RW - CVRWLock", context);
+    TestKV<KV::KV_RWLock < L::CVRWLock >> ("RW - CVRWLock", context);
+    TestKV<KV::KV_RWLock < L::NginxRWLock2 >> ("RW - Nginx", context);
+    TestKV<KV::KV_RWLock < L::NginxRWLock2 >> ("RW - Nginx", context);
+    TestKV<KV::KV_RWLock < L::NginxRWLock2 >> ("RW - Nginx", context);
+//    TestKV<KV::KV_CopyOnWrite < std::mutex >> ("CopyOnWrite", context);
+//    TestKV<KV::KV_CopyOnWrite < std::mutex >> ("CopyOnWrite", context);
+//    TestKV<KV::KV_CopyOnWrite < std::mutex >> ("CopyOnWrite", context);
 }

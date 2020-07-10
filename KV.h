@@ -117,7 +117,7 @@ namespace KV {
         void add(int key, int value) {
             std::lock_guard<LOCK> lk(m);
             if (!kv.unique()) {
-                MapPtr newData = std::make_shared<Map>();
+                MapPtr newData = std::make_shared<Map>(*kv);
                 kv.swap(newData);
             }
             kv->emplace(key, value);

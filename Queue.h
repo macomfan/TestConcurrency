@@ -33,7 +33,7 @@ namespace Q {
         void push(const std::string& msg) {
             std::lock_guard<std::mutex> lk(m);
             q.push(msg);
-            c.notify_all();
+            c.notify_one();
         }
 
         std::string pop() {

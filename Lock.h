@@ -3,6 +3,7 @@
 #include <atomic>
 #include <thread>
 #include <memory>
+#include <condition_variable>
 
 
 namespace L {
@@ -142,4 +143,218 @@ namespace L {
     };
 
     const std::thread::id AtomicRWLock::NULL_THEAD;
+
+    class CVRWLock {
+    public:
+
+        void rlock() {
+            if (write_cnt != 0) {
+                std::unique_lock<std::mutex> ulk(counter_mutex);
+                cond_r.wait(ulk, [&]() {
+                    return write_cnt == 0; });
+            }
+            ++read_cnt;
+        }
+
+        void runlock() {
+            std::unique_lock<std::mutex> ulk(counter_mutex);
+            if (--read_cnt == 0 && write_cnt > 0) {
+                cond_w.notify_one();
+            }
+        }
+
+        void wlock() {
+            std::unique_lock<std::mutex> ulk(counter_mutex);
+            ++write_cnt;
+            cond_w.wait(ulk, [&]() {
+                return read_cnt == 0 && !inwriteflag;
+            });
+            inwriteflag = true;
+        }
+
+        void wunlock() {
+            inwriteflag = false;
+            if (--write_cnt == 0) {
+                cond_r.notify_all();
+            } else {
+                cond_w.notify_one();
+            }
+        }
+
+    private:
+        std::atomic<uint32_t> read_cnt{0};
+        std::atomic<uint32_t>write_cnt{0};
+        std::atomic<bool> inwriteflag{false};
+        std::mutex counter_mutex;
+        std::condition_variable cond_w;
+        std::condition_variable cond_r;
+    };
+
+    class NginxRWLock2 {
+        std::atomic<uint64_t> lock{0};
+        uint64_t WLOCK = (uint64_t) - 1;
+        uint64_t ZERO = (uint64_t) 0;
+    public:
+
+        void rlock() {
+            uint64_t reader;
+            for (;;) {
+                reader = lock;
+                if (reader != WLOCK && lock.compare_exchange_weak(reader, reader + 1)) {
+                    return;
+                }
+            }
+        }
+
+        void runlock() {
+            uint64_t reader = lock;
+            for (;;) {
+                if (lock > ZERO && lock.compare_exchange_weak(reader, reader - 1)) {
+                    return;
+                }
+                reader = lock;
+            }
+        }
+
+        void wlock() {
+            for (;;) {
+                if (lock == ZERO && lock.compare_exchange_weak(ZERO, WLOCK)) {
+                    return;
+                }
+                ZERO = 0;
+            }
+        }
+
+        void wunlock() {
+            if (lock == WLOCK) {
+                lock.compare_exchange_weak(WLOCK, ZERO);
+                return;
+            }
+        }
+    };
+
+#define NGX_ATOMIC_T_LEN            (sizeof("-9223372036854775808") - 1)
+#define NGX_RWLOCK_SPIN   2048
+#define NGX_RWLOCK_WLOCK  ((ngx_atomic_uint_t) -1)
+#define ngx_cpu_pause()         __asm__ ("pause")
+#define ngx_sched_yield()   sched_yield()
+#define ngx_ncpu 4
+
+    class NginxRWLock {
+    public:
+        typedef int64_t ngx_atomic_int_t;
+        typedef uint64_t ngx_atomic_uint_t;
+        typedef volatile ngx_atomic_uint_t ngx_atomic_t;
+        typedef intptr_t ngx_int_t;
+        typedef uintptr_t ngx_uint_t;
+        typedef intptr_t ngx_flag_t;
+
+        static ngx_atomic_uint_t
+        ngx_atomic_cmp_set(ngx_atomic_t *lock, ngx_atomic_uint_t old,
+                ngx_atomic_uint_t set) {
+            u_char res;
+
+            __asm__ volatile (
+
+                    "    cmpxchgq  %3, %1;   "
+                    "    sete      %0;       "
+
+                    : "=a" (res) : "m" (*lock), "a" (old), "r" (set) : "cc", "memory");
+
+            return res;
+        }
+
+        void rlock() {
+            ngx_uint_t i, n;
+            ngx_atomic_uint_t readers;
+
+            for (;;) {
+                readers = lock;
+
+                if (readers != NGX_RWLOCK_WLOCK
+                        && ngx_atomic_cmp_set(&lock, readers, readers + 1)) {
+                    std::cout << "lock " << lock << std::endl;
+                    return;
+                }
+
+                //                if (ngx_ncpu > 1) {
+                //
+                //                    for (n = 1; n < NGX_RWLOCK_SPIN; n <<= 1) {
+                //
+                //                        for (i = 0; i < n; i++) {
+                //                            ngx_cpu_pause();
+                //                        }
+                //
+                //                        readers = lock;
+                //
+                //                        if (readers != NGX_RWLOCK_WLOCK
+                //                                && ngx_atomic_cmp_set(&lock, readers, readers + 1)) {
+                //                            std::cout << "lock " << lock << std::endl;
+                //                            return;
+                //                        }
+                //                    }
+                //                }
+
+                //ngx_sched_yield();
+            }
+        }
+
+        void runlock() {
+            ngx_atomic_uint_t readers;
+
+            readers = lock;
+
+            if (readers == NGX_RWLOCK_WLOCK) {
+                (void) ngx_atomic_cmp_set(&lock, NGX_RWLOCK_WLOCK, 0);
+                return;
+            }
+
+            for (;;) {
+                if (lock == 0) {
+                    std::cout << "error" << std::endl;
+                }
+                if (ngx_atomic_cmp_set(&lock, readers, readers - 1)) {
+                    std::cout << "unlock " << lock << std::endl;
+                    return;
+                }
+
+                readers = lock;
+            }
+        }
+
+        void wlock() {
+            ngx_uint_t i, n;
+
+            for (;;) {
+
+                if (lock == 0 && ngx_atomic_cmp_set(&lock, 0, NGX_RWLOCK_WLOCK)) {
+                    return;
+                }
+
+                //                if (ngx_ncpu > 1) {
+                //
+                //                    for (n = 1; n < NGX_RWLOCK_SPIN; n <<= 1) {
+                //
+                //                        for (i = 0; i < n; i++) {
+                //                            ngx_cpu_pause();
+                //                        }
+                //
+                //                        if (lock == 0
+                //                                && ngx_atomic_cmp_set(&lock, 0, NGX_RWLOCK_WLOCK)) {
+                //                            return;
+                //                        }
+                //                    }
+                //                }
+
+                //ngx_sched_yield();
+            }
+        }
+
+        void wunlock() {
+            runlock();
+        }
+
+    private:
+        ngx_atomic_t lock = 0;
+    };
 }
