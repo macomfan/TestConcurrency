@@ -5,6 +5,9 @@
 #include <memory>
 #include <condition_variable>
 
+// Two pages discuss the spin lock and RWLock
+// https://github.com/cyfdecyf/spinlock/
+// http://locklessinc.com/articles/locks/
 
 namespace L {
 
