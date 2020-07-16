@@ -73,9 +73,9 @@ void StartTestKV() {
     context.itemNum = 9999999;
     context.readerNum = 3;
     context.writeNum = 0;
-    TestKV<KV::KV_LockAll < L::MCSLock >> ("LockAll - MCSLock", context);
-    TestKV<KV::KV_LockAll < L::MCSLock >> ("LockAll - MCSLock", context);
-    TestKV<KV::KV_LockAll < L::MCSLock >> ("LockAll - MCSLock", context);
+    TestKV<KV::KV_LockAll < L::MCSLockAtomic >> ("LockAll - MCSLock", context);
+    TestKV<KV::KV_LockAll < L::MCSLockAtomic >> ("LockAll - MCSLock", context);
+    TestKV<KV::KV_LockAll < L::MCSLockAtomic >> ("LockAll - MCSLock", context);
 
     TestKV<KV::KV_LockAll < std::mutex >> ("LockAll - mutex", context);
     TestKV<KV::KV_LockAll < std::mutex >> ("LockAll - mutex", context);

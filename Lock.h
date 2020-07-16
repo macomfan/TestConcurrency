@@ -389,7 +389,7 @@ namespace L {
         me->next = NULL;
         me->spin = 0;
 
-        tail = (mcs_lock_t*)xchg_64(m, me);
+        tail = (mcs_lock_t*) xchg_64(m, me);
 
         /* No one there? */
         if (!tail) return;
@@ -435,6 +435,8 @@ namespace L {
         return 1; // Busy
     }
 
+    
+    // copied from https://github.com/cyfdecyf/spinlock/
     class MCSLock {
     public:
 
@@ -450,6 +452,54 @@ namespace L {
         mcs_lock cnt_lock = NULL;
         static thread_local mcs_lock_t local_lock;
     };
-    
+
     thread_local mcs_lock_t MCSLock::local_lock;
+
+    struct qnode {
+        std::atomic<qnode *> next;
+        std::atomic<bool> wait;
+    };
+
+    // copied from https://stackoverflow.com/questions/61944469/problems-with-mcs-lock-implementation
+    class MCSLockAtomic {
+        std::atomic<qnode *> tail;
+        static thread_local qnode p;
+    public:
+        
+        MCSLockAtomic() {
+            tail.store(nullptr);
+        }
+
+        void lock() {
+            p.next.store(nullptr);
+            p.wait.store(true);
+
+            qnode *prev = tail.exchange(&p, std::memory_order_acq_rel);
+
+            if (prev) {
+                prev->next.store(&p, std::memory_order_release);
+
+                /* spin */
+                while (p.wait.load(std::memory_order_acquire))
+                    ;
+            }
+        }
+
+        void unlock() {
+            qnode *succ = p.next.load(std::memory_order_acquire);
+
+            if (!succ) {
+                auto expected = &p;
+                if (tail.compare_exchange_strong(expected, nullptr, std::memory_order_acq_rel))
+                    return;
+
+                do {
+                    succ = p.next.load(std::memory_order_acquire);
+                } while (succ == nullptr);
+            }
+
+            succ->wait.store(false, std::memory_order_release);
+        }
+    };
+    thread_local qnode MCSLockAtomic::p;
 }
